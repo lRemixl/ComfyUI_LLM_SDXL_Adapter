@@ -14,51 +14,50 @@ class T5GEMMATextEncoder:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "model": ("LLM_MODEL",),
-                "tokenizer": ("LLM_TOKENIZER",),
-                "text": ("STRING", {
-                    "multiline": True,
-                    "default": "masterpiece, best quality, 1girl, anime style"
-                }),
+                "llm_model": ("LLM_MODEL",),
+                "llm_tokenizer": ("LLM_TOKENIZER",),
+                "text": ("STRING", {"multiline": True, "default": "masterpiece, best quality, 1girl, anime style"}),
+                "max_length": ("INT", {"default": 512, "min": 8, "max": 4096}),
+                "device": (["cpu", "cuda"], {"default": "cuda"}),
+                "dtype": (["float32", "bfloat16"], {"default": "bfloat16"}),
             }
         }
     
-    RETURN_TYPES = ("LLM_HIDDEN_STATES", "STRING")
-    RETURN_NAMES = ("hidden_states", "info")
+    RETURN_TYPES = ("LLM_HIDDEN_STATES", "LLM_ATTENTION_MASK", "STRING")
+    RETURN_NAMES = ("hidden_states", "attention_mask", "info")
     FUNCTION = "encode_text"
     CATEGORY = "llm_sdxl"
     
-    def encode_text(self, model, tokenizer, text, system_prompt="You are expert in understanding of user prompts for image generations. Create an image according to the prompt from user.", skip_first=27):
+    def encode_text(self, llm_model, llm_tokenizer, text, max_length, device, dtype):
         """
         Encode text using Language Model and return hidden states
         """
         try:
-            # Get model device
-            device = next(model.parameters()).device
-            
+
+            _ = torch.bfloat16 if dtype == "bfloat16" else torch.float32
             # Tokenize
-            inputs = tokenizer(
+            inputs = llm_tokenizer(
                 text,
                 return_tensors="pt",
-                padding = "max_length",
-                max_length=512, 
-                truncation = True,
-            ).to(device)
-            
+                padding="max_length",
+                max_length=max_length,
+                truncation=True,
+            )
+            input_ids = inputs.input_ids.to(device)
+            attention_mask = inputs.attention_mask.to(device)
+
             # Generate hidden states
             with torch.no_grad():
-                outputs = model(**inputs)
+                outputs = llm_model(input_ids=input_ids, attention_mask=attention_mask)
+                # Extract hidden states
+                hidden_states = outputs.last_hidden_state.to(torch.float32)
                 
-            # Extract hidden states, skipping first tokens
-            hidden_states = outputs['last_hidden_state'].to(torch.float)
-            
             # Prepare info
             info = f"Text: {text[:50]}...\nEncoded: {hidden_states.shape[1]}\nShape: {hidden_states.shape}"
             
             logger.info(f"Encoded text with shape: {hidden_states.shape}")
             
-            return (hidden_states, info)
-            
+            return (hidden_states, attention_mask, info)
         except Exception as e:
             logger.error(f"Failed to encode text: {str(e)}")
             raise Exception(f"Text encoding failed: {str(e)}")
