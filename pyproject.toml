@@ -1,7 +1,7 @@
 [project]
 name = "llm_sdxl_adapter"
 description = "A comprehensive set of ComfyUI nodes for using Large Language Models (LLM) as text encoders for SDXL image generation through a trained adapter."
-version = "2.0.0"
+version = "3.0.0"
 license = { file = "LICENSE" }
 
 [project.urls]

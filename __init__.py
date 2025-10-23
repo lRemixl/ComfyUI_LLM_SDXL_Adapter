@@ -1,5 +1,5 @@
 """
-ComfyUI LLM SDXL Adapter v2.0.0
+ComfyUI LLM SDXL Adapter v3.0.0
 
 ComfyUI nodes for using Large Language Models as text encoders for SDXL image generation through trained adapters.
 """
@@ -109,7 +109,7 @@ for mapping in all_display_mappings:
     NODE_DISPLAY_NAME_MAPPINGS.update(mapping)
 
 # Version and metadata
-__version__ = "2.0.0"
+__version__ = "3.0.0"
 __author__ = "NeuroSenko"
 __description__ = "ComfyUI nodes for LLM to SDXL adapter workflow"
 
