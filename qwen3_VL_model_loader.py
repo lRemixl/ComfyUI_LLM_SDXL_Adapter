@@ -7,7 +7,7 @@ from .utils import get_llm_checkpoints, get_llm_checkpoint_path
 logger = logging.getLogger("LLM-SDXL-Adapter")
 
 
-class LLMModelLoaderQwen:
+class LLMModelLoaderQwen3VL:
     """
     ComfyUI node that loads Language Model and tokenizer
     Supports various LLM architectures (Gemma, Llama, Mistral, etc.)
@@ -90,9 +90,9 @@ class LLMModelLoaderQwen:
 
 # Node mapping for ComfyUI registration
 NODE_CLASS_MAPPINGS = {
-    "LLMModelLoaderQwen": LLMModelLoaderQwen,
+    "LLMModelLoaderQwen3VL": LLMModelLoaderQwen3VL,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "LLMModelLoaderQwen": "Qwen LLM Model Loader",
+    "LLMModelLoaderQwen3VL": "Qwen-3-VL LLM Model Loader",
 } 

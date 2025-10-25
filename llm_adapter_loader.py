@@ -21,7 +21,7 @@ class LLMAdapterLoader:
     
     @classmethod
     def INPUT_TYPES(cls):
-        adapter_types = ["gemma", "t5gemma"]
+        adapter_types = ["gemma", "t5gemma", "Qwen3-VL-4B"]
         return {
             "required": {
                 "adapter_name": (get_llm_adapters(), {
@@ -61,6 +61,16 @@ class LLMAdapterLoader:
             },
             "t5gemma": {
                 "llm_dim": 2304,
+                "sdxl_seq_dim": 2048,
+                "sdxl_pooled_dim": 1280,
+                "target_seq_len": 308,
+                "n_wide_blocks": 3,
+                "n_narrow_blocks": 3,
+                "num_heads": 16,
+                "dropout": 0.0,
+            },
+            "Qwen3-VL-4B": {
+                "llm_dim": 2560,
                 "sdxl_seq_dim": 2048,
                 "sdxl_pooled_dim": 1280,
                 "target_seq_len": 308,
