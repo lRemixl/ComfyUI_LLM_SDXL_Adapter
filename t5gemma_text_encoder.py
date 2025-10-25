@@ -37,7 +37,7 @@ class T5GEMMATextEncoder:
             _ = torch.bfloat16 if dtype == "bfloat16" else torch.float32
             # Tokenize
             inputs = llm_tokenizer(
-                text,
+                text + "<eos>",
                 return_tensors="pt",
                 padding="max_length",
                 max_length=max_length,
