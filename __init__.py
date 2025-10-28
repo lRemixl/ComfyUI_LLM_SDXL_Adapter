@@ -73,6 +73,9 @@ try:
     from .qwen3_VL_text_encoder import NODE_CLASS_MAPPINGS as QWEN3_VL_ENCODER_MAPPINGS
     from .qwen3_VL_text_encoder import NODE_DISPLAY_NAME_MAPPINGS as QWEN3_VL_ENCODER_DISPLAY_MAPPINGS
     
+    from .t5gemma_lora_loader import NODE_CLASS_MAPPINGS as T5GEMMA_LORA_LOADER_NODE_MAPPINGS
+    from .t5gemma_lora_loader import NODE_DISPLAY_NAME_MAPPINGS as T5GEMMA_LORA_LOADER_NODE_DISPLAY_MAPPINGS
+
     logger.info("Successfully imported all node modules from separate files")
     
 except Exception as e:
@@ -96,6 +99,7 @@ all_class_mappings = [
     T5GEMMA_ADAPTER_NODE_MAPPINGS,
     QWEN3_VL_LLM_MODEL_LOADER_MAPPINGS,
     QWEN3_VL_ENCODER_MAPPINGS,
+    T5GEMMA_LORA_LOADER_NODE_MAPPINGS,
 ]
 
 all_display_mappings = [
@@ -110,6 +114,7 @@ all_display_mappings = [
     T5GEMMA_ADAPTER_NODE_DISPLAY_MAPPINGS,
     QWEN3_VL_LLM_MODEL_LOADER_DISPLAY_MAPPINGS,
     QWEN3_VL_ENCODER_DISPLAY_MAPPINGS,
+    T5GEMMA_LORA_LOADER_NODE_DISPLAY_MAPPINGS,
 ]
 
 for mapping in all_class_mappings:
