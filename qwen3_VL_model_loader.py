@@ -9,7 +9,8 @@ logger = logging.getLogger("LLM-SDXL-Adapter")
 
 class LLMModelLoaderQwen3VL:
     """
-    ComfyUI node that loads Qwen 3 VL Language Model and tokenizer
+    ComfyUI node that loads Language Model and tokenizer
+    Supports various LLM architectures (Gemma, Llama, Mistral, etc.)
     """
     
     def __init__(self):

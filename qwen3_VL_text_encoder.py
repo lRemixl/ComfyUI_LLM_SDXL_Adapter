@@ -3,12 +3,11 @@ import logging
 
 logger = logging.getLogger("LLM-SDXL-Adapter")
 
-# Could combine Gemma, t5gemma, and Qwen into one TextEncoder node ... 
 
-class Qwen3VLTextEncoder:
+class QwenTextEncoder:
     """
     ComfyUI node that encodes text using a loaded Language Model
-    Made For Qwen 3 VL Language Model
+    Supports various LLM architectures with chat templates
     """
     
     @classmethod
@@ -71,9 +70,9 @@ class Qwen3VLTextEncoder:
 
 # Node mapping for ComfyUI registration
 NODE_CLASS_MAPPINGS = {
-    "Qwen3VLTextEncoder": Qwen3VLTextEncoder
+    "QwenTextEncoder": QwenTextEncoder
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
-    "Qwen3VLTextEncoder": "Qwen-3-VL Text Encoder"
+    "QwenTextEncoder": "Qwen Text Encoder"
 }
