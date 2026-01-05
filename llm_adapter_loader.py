@@ -3,10 +3,84 @@ from safetensors.torch import load_file
 import logging
 import gc
 import os
+import re
 from .utils import get_llm_adapters, get_llm_adapter_path
 from .llm_to_sdxl_adapter import LLMToSDXLAdapter
-
 logger = logging.getLogger("LLM-SDXL-Adapter")
+
+
+def convert_explicit_adapter_to_mha(state_dict):
+    """
+    Converts Adapter from the explicit form with separate QKV layers
+    to the MultiheadAttention (MHA) format used in LLM_to_SDXL_Adapter.
+    
+    This handles:
+    - Concatenating q_proj, k_proj, v_proj -> in_proj
+    - Renaming o_proj -> out_proj 
+    """
+    converted_dict = {}
+    mha_buffers = {}
+    
+    # Regex to capture:
+    # base path, (queries: q, keys: k, values: V) and (weight, bias)
+    # e.g, wide_attention_blocks.0.attn.q_proj.weight
+    qkv_pattern = re.compile(r"(.*)\.(q|k|v)_proj\.(weight|bias)")
+    
+    # o_proj (Explicit) -> out_proj (MHA)
+    out_proj_pattern = re.compile(r"(.*)\.o_proj\.(weight|bias)")
+    
+    keys_to_remove = []
+    # get the QKVs and copy everything else
+    for key, value in state_dict.items():
+        qkv_match = qkv_pattern.match(key)
+        out_match = out_proj_pattern.match(key)
+        if qkv_match:
+            base_path, proj_type, param_type = qkv_match.groups()
+            
+            if base_path not in mha_buffers:
+                mha_buffers[base_path] = {'weight': {}, 'bias': {}}
+                
+            mha_buffers[base_path][param_type][proj_type] = value
+        
+        elif out_match:
+            # Rename o_proj -> out_proj
+            base_path, param_type = out_match.groups()
+            new_key = f"{base_path}.out_proj.{param_type}"
+            converted_dict[new_key] = value
+        
+        else:
+            # Copy all the other layers
+            converted_dict[key] = value
+            
+    # Process the grouped QKV
+    count_converted = 0
+    for base_path, params in mha_buffers.items():
+        if all(k in params['weight'] for k in ['q', 'k', 'v']):
+            # MHA expects a shape of (3 * embed_dim, embed_dim)
+            # concat [Q_weight, K_weight, V_weight] along dim 0
+            combined_weight = torch.cat([
+                params['weight']['q'],
+                params['weight']['k'],
+                params['weight']['v']
+            ], dim=0)
+            
+            converted_dict[f"{base_path}.in_proj_weight"] = combined_weight
+            count_converted += 1
+            
+        # Get the biases
+        if all(k in params['bias'] for k in ['q', 'k', 'v']):
+            # MHA expects a shape of (3 * embed_dim, embed_dim)
+            combined_bias = torch.cat([
+                params['bias']['q'],
+                params['bias']['k'],
+                params['bias']['v']
+            ], dim=0)
+            
+            converted_dict[f"{base_path}.in_proj_bias"] = combined_bias
+
+    logger.info(f"Converted {count_converted} attn blocks from explicit to MultiheadAttention.")
+    return converted_dict
+
 
 class LLMAdapterLoader:
     """
@@ -17,11 +91,16 @@ class LLMAdapterLoader:
         self.adapter = None
         self.current_adapter_path = None
         self.current_adapter_type = None
-        self.device = 'cuda:0' if torch.cuda.is_available() else 'cpu'
-    
+        if torch.cuda.is_available():
+            self.device = 'cuda:0'
+        elif torch.xpu.is_available():
+            self.device = 'xpu:0'
+        else:
+            self.device = 'cpu'
     @classmethod
     def INPUT_TYPES(cls):
         adapter_types = ["gemma", "t5gemma"]
+        device_types = ["auto", "cuda:0", "cuda:1", "cpu", "xpu:0", "xpu:1"] if torch.xpu.is_available() else ["auto", "cuda:0", "cuda:1", "cpu"]
         return {
             "required": {
                 "adapter_name": (get_llm_adapters(), {
@@ -30,8 +109,9 @@ class LLMAdapterLoader:
                 "type": (adapter_types, {"default": "gemma"}),
             },
             "optional": {
-                "device": (["auto", "cuda:0", "cuda:1", "cpu"], {"default": "auto"}),
+                "device": (device_types, {"default": "auto"}),
                 "force_reload": ("BOOLEAN", {"default": False}),
+                "explicit_attention": ("BOOLEAN", {"default": False}),
             }
         }
     
@@ -40,7 +120,7 @@ class LLMAdapterLoader:
     FUNCTION = "load_adapter"
     CATEGORY = "llm_sdxl"
     
-    def load_adapter(self, adapter_name, type, device="auto", force_reload=False):
+    def load_adapter(self, adapter_name, type, device="auto", force_reload=False, explicit_attention=False):
         """Load and initialize the LLM to SDXL adapter"""
         if device == "auto":
             device = self.device
@@ -99,9 +179,19 @@ class LLMAdapterLoader:
                 )
                 
                 # Load checkpoint if file exists
+                strict_load = True
                 if os.path.exists(adapter_path):
                     checkpoint = load_file(adapter_path)
-                    self.adapter.load_state_dict(checkpoint)
+                    if hasattr(checkpoint, "compression_attention"):
+                        if checkpoint.compression_attention.__class__.__name__ == "ExplicitMultiheadAttention":
+                            explicit_attention = True
+                            logger.info(f" Compression attn has a class name of: {checkpoint.compression_attention.__class__.__name__}")
+                    if explicit_attention:
+                        checkpoint = convert_explicit_adapter_to_mha(checkpoint)
+                    if hasattr(checkpoint, "input_norm"):
+                        strict_load = False 
+        
+                    self.adapter.load_state_dict(checkpoint,strict=strict_load)
                     logger.info(f"Loaded adapter weights from {adapter_path}")
                 else:
                     logger.warning(f"Adapter file not found: {adapter_path}, using initialized weights")
